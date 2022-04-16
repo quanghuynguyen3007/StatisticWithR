@@ -1,0 +1,202 @@
+---
+title: "assigmnet3"
+author: "QUANG HUY NGUYEN - 45768161"
+date: "29/10/2021"
+output: pdf_document
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+# Question 1
+
+a)  
+
+```{r}
+library(readxl)
+magnes <- read_excel("magnes.xls", col_types = c("numeric", "numeric", "numeric", "skip", "numeric", "numeric", "numeric"))
+magnes <- data.frame(Magnesium = c(magnes[[1]],magnes[[4]]),Time = c(magnes[[2]],magnes[[5]]),Treatment = c(magnes[[3]],magnes[[6]]))
+magnes$Treatment = as.factor(magnes$Treatment)
+magnes$Time = as.numeric(magnes$Time)
+head(magnes)
+```
+
+```{r}
+fit = lm(Magnesium ~ Time + I(Time^2) + Treatment, data = magnes)
+summary(fit)
+```
+
+-   The model's R-squared is 0.794, which means 79% observation of
+    Magnesium can be explain by 3 above variables.
+-   Time\^2 is not significant.
+
+```{r, fig.width = 10, fig.height = 10}
+par(mfrow = c(2, 2))
+plot(fit)
+```
+
+-   Linear assumption is not satisfied.
+
+-   Evident of Heteroscedasticity.
+
+-   Q-Q plot show normality.
+
+-   There is 1 extreme points (55) that is exceed 4 standard deviations.
+
+b)  When combine two given models, we have: $$
+    E(y_{(56 \times 1)})=X_{(56 \times 3)}\beta_{(1 \times 3)}
+    $$ With: $$ 
+    X= \begin{bmatrix} 
+    1&0&x_1^1&0&x^3_1&0 \\ 
+    \vdots&\vdots&\vdots&\vdots&\vdots&\vdots \\
+    1&0&x_{56}^1&0&x^3_{56}&0 \\
+    0&1&0&x_1^2&0&x^4_1\\ 
+    \vdots&\vdots&\vdots&\vdots&\vdots&\vdots \\
+    0&1&0&x_{56}^2&0&x^4_{56} \\
+    \end{bmatrix}
+    $$ And $$ 
+    \beta= \begin{bmatrix} \beta_0 \\ \gamma_0 \\ \beta_1 \\ \gamma_1 \\ \beta_2 \\ \gamma_2 \end{bmatrix}
+    $$ Assume that: $$
+    y_{n×1} \sim N_{56}(\mu,\sigma^2I_n)
+    $$ With $$
+    \mu=X\beta.
+    $$
+
+$$
+H_0 : C\beta_{(1 \times 6)} = 0
+$$ With $$
+C = \begin{bmatrix} 0&1&0 \\ 0&0&1 \end{bmatrix} 
+$$ c) T2 test:
+
+```{r}
+fit1 = lm(Magnesium ~ Time + I(Time^2), data = magnes)
+b <- fit1$coef
+X <- model.matrix(fit1)
+C <- rbind(c(0,1,0), c(0,0,1))
+sig2 <- sum(fit1$res^2)/(dim(magnes)[1]-3)
+V <- sig2*C%*%solve(t(X)%*%X)%*%t(C)
+d<-t(C%*%b)%*%solve(V)%*%C%*%b
+d
+cv <- 2*qf(.95, 2, dim(magnes)[1]-3)
+cv
+```
+
+-   The T value is greater than critical value. Hence, reject the
+    hypothesis.
+
+d)  
+
+```{r}
+rssf <-sum(fit1$res^2)
+
+fit2 <- lm(Magnesium ~ Time + I(Time^2), data = magnes[28:56,])
+rssr <- sum(fit2$residuals^2)
+# test statistic:
+f = ((rssr - rssf)/(3-1)) / (rssf/(dim(magnes)[1]-3))
+f
+cv <- 2*qf(.95, 2, dim(magnes)[1]-3)
+cv
+```
+
+# Question 2
+
+a)  
+
+```{r}
+air <- read_excel("air.xls", col_types = c("numeric", 
+    "numeric", "numeric", "numeric", "numeric", 
+    "numeric", "numeric"))
+R <- cor(air)
+R
+```
+
+```{r}
+er <- eigen(R)
+v <- er$values
+id <- er$vectors
+v
+cumsum(v)/sum(v)
+```
+
+-   The first values will explain \~80% of the total variability. Hence
+    select 4 common factors.
+
+c)  
+
+```{r}
+S <- var(air)
+#assume m = 2
+#v[c(1,2)]/sum(v) #variance explained by two factors
+Lam = id[, c(1,2)]%*%diag(sqrt(v[c(1,2)])) #factor loading matrix lambda 
+Psi = diag(S-Lam%*%t(Lam)) #specific variances
+resi = S-(Lam%*%t(Lam)+diag(Psi)) #residual matrix
+resi
+Psi
+```
+
+d)  
+
+```{r}
+air.mle <- factanal(air, factors=2) #mle factor analysis
+lam.mle <- air.mle$load #loadings
+psi.mle <- air.mle$unique # psi’s
+resi.mle <- R-lam.mle%*%t(lam.mle)-diag(psi.mle) #residuals resi.mle
+resi.mle
+psi.mle
+```
+
+PCA is only a linear transformation of data. No assumptions are made
+about the form of covariance matrix. In contrast, FA considers
+transformations from underlying unobservable factors to observed data.
+
+e)  
+
+-   Weighted least squares
+
+```{r}
+air.faw <- factanal(air, factors=2, scores="Bartlett")
+air.faw$scores
+```
+
+-   Regression approach
+
+```{r}
+fit <- factanal(air, 2, rotaion="varimax", scores = "regression")
+fit$loadings
+fit$scores
+```
+
+# Question 3
+
+a)  
+
+-   Correlation matrix S and the sample principal components.
+
+```{r}
+stock <- read_excel("stock.xls")
+S <- cor(stock)
+S
+s.s <- eigen(S)
+s.s$vectors
+s.s$values
+```
+
+b)  
+
+-   The proportion and the cumulative proportion of the total variance
+
+```{r}
+s.s$values/sum(s.s$values)
+cumsum(s.s$values)/sum(s.s$values)
+```
+
+c)  
+
+```{r}
+pl=princomp(~stock$`Allied Chemical`+stock$`Du Pont`+stock$`Union Carbide`
+               +stock$Exxon+stock$Texaco, cor=TRUE, data=stock) 
+pl$loadings
+plot(pl, type="lines")
+```
+
+-   Base on the graph, we should reducing dimension from 7 to 2.
